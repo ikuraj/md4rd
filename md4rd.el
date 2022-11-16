@@ -824,6 +824,23 @@ return value of ACTIONFN is ignored."
     map)
   "Keymap for md4rd major mode.")
 
+;; ;; TODO change this whole list to ALIST
+;; (defvar md4rd-evil-mode-map
+;;   (let ((map (make-keymap)))
+;;  (define-key map (kbd "r") 'md4rd-reply)
+;;  (define-key map (kbd "u") 'md4rd-upvote)
+;;  (define-key map (kbd "d") 'md4rd-downvote)
+;;  (define-key map (kbd "o") 'md4rd-open)
+;;  (define-key map (kbd "t") 'md4rd-widget-toggle-line)
+;;  (define-key map (kbd "e") 'md4rd-widget-expand-all)
+;;  (define-key map (kbd "c") 'md4rd-widget-collapse-all)
+;;  ;; NOTE this gets translated into inner keymap, deal with this later
+;;  ;;(define-key map (kbd "M-q") 'md4rd-indent-all-the-lines)
+;;  (define-key map (kbd "TAB") 'widget-forward)
+;;  (define-key map (kbd "<backtab>") 'widget-backward)
+;;     map)
+;;   "Evil Keymap for md4rd major mode.")
+
 (defun md4rd-evil-binds ()
   "Bind commands for evil users as well (when its on)."
   (interactive)
