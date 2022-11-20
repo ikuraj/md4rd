@@ -43,10 +43,24 @@
 
   (it "formats defined variables of sub pairs for URL properly"
       (let (
-            (mysubs (mapcar (lambda (subsingle) (cons subsingle (cons 'sub nil))) md4rd-subs-active))
+            (mysubs (append
+                     (mapcar (lambda (subsingle) (cons subsingle (cons 'sub nil))) md4rd-subs-active)
+                     (mapcar (lambda (subpair) (cons (car subpair) (cons 'fullurl (cons (cadr subpair) nil)))) md4rd-customurls-active)
+                    )
+            )
+            (results (append
+                      (mapcar (lambda (subsingle) (format md4rd--sub-url subsingle)) md4rd-subs-active)
+                      (mapcar (lambda (subpair) (car subpair)) md4rd-customurls-active)
+                     )
+            )
            )
-        (dolist (elt mysubs)
-          (expect (md4rd--get--url elt) :to-equal (format md4rd--sub-url (car elt)))
+        (dolist (elt (cl-mapcar (lambda (x y) (cons x (cons y nil))) mysubs results) )
+          (let (
+                (el (car elt))
+                (res (cadr elt))
+               )
+                (expect (md4rd--get--url el) :to-equal res)
+          )
         )
       )
   )
