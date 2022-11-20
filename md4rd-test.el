@@ -13,8 +13,8 @@
   )
 )
 
-(describe "A suite"
-  (it "contains a spec with an expectation"
+(describe "A non-related (general emacs) suite"
+  (it "gets string from JSON on the web"
     (let (json)
       (request
         "https://api.github.com/status"
@@ -29,3 +29,9 @@
       )
     )
 ))
+
+(describe "A set of helpers in md4rd"
+  (it "format sub URL properly"
+      (expect (format md4rd--sub-url 'emacs) :to-equal "https://www.reddit.com/r/emacs.json")
+  )
+)
