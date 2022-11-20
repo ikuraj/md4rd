@@ -237,6 +237,13 @@ Should be one of visit, upvote, downvote, open.")
             :parser #'json-read
             :headers `(("User-Agent" . "fun")))))
 
+(defun md4rd--get--url (sub-tuple)
+  (pcase (cadr sub-tuple)
+    (`sub (format md4rd--sub-url (car sub-tuple)))
+    (`fullurl (car sub-tuple))
+    (_ (error "error: I don't understand the sub URL")))
+)
+
 (defun md4rd--fetch-sub (sub)
   "Get a list of the SUB on a thread."
   (request-response-data

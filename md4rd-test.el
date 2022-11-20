@@ -31,7 +31,13 @@
 ))
 
 (describe "A set of helpers in md4rd"
-  (it "format sub URL properly"
+  (it "formats sub URL properly"
       (expect (format md4rd--sub-url 'emacs) :to-equal "https://www.reddit.com/r/emacs.json")
+  )
+
+  (it "formats sub pairs for URL properly"
+      (expect (md4rd--get--url '(emacs sub)) :to-equal "https://www.reddit.com/r/emacs.json")
+      (expect (md4rd--get--url '("https://www.reddit.com/r/emacs2.json" fullurl)) :to-equal "https://www.reddit.com/r/emacs2.json")
+      (should-error (md4rd--get--url '("https://www.reddit.com/r/emacs2.json" aaa)))
   )
 )
