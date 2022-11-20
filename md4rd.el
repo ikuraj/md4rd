@@ -367,6 +367,11 @@ SUB should be a valid sub."
   :group 'md4rd
   :type (list 'symbol))
 
+(defcustom md4rd-customurls-active
+  '(("https://www.reddit.com/r/emacs.json" "my daily"))
+  "List of custom URLs on Reddit you would like to subscribe to."
+  :group 'md4rd
+  :type (list (list '(string))))
 
 ;;  ___  _         _
 ;; |   \(_)____ __| |__ _ _  _

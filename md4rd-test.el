@@ -40,4 +40,14 @@
       (expect (md4rd--get--url '("https://www.reddit.com/r/emacs2.json" fullurl)) :to-equal "https://www.reddit.com/r/emacs2.json")
       (should-error (md4rd--get--url '("https://www.reddit.com/r/emacs2.json" aaa)))
   )
+
+  (it "formats defined variables of sub pairs for URL properly"
+      (let (
+            (mysubs (mapcar (lambda (subsingle) (cons subsingle (cons 'sub nil))) md4rd-subs-active))
+           )
+        (dolist (elt mysubs)
+          (expect (md4rd--get--url elt) :to-equal (format md4rd--sub-url (car elt)))
+        )
+      )
+  )
 )
