@@ -66,7 +66,7 @@
   "The client ID that links this up to the reddit.com OAuth endpoint.")
 
 (defvar md4rd--oauth-url
-  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit"
+  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit,read"
   "The OAuth URL/endpoint.")
 
 (defvar md4rd--oauth-access-token-uri
@@ -285,16 +285,37 @@ Should be one of visit, upvote, downvote, open.")
                 )
         )
        )
+    (request-response-data
+     (request (concat (md4rd--get-item-url sub) after-suffix)
+              :complete
+              (cl-function
+               (lambda (&rest data &allow-other-keys)
+                 (apply #'md4rd--fetch-sub-callback sub data)))
+              :sync nil
+              :parser #'json-read
+              ;:headers `(("User-Agent" . "fun"))
+              :headers `(("User-Agent" . "md4rd")
+                         ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token)))
+     )
+    )
+  )
+)
 
+(defun reddit-test ()
+(message "----------------WTF------------------")
   (request-response-data
-   (request (concat (md4rd--get-item-url sub) after-suffix)
-            :complete
-            (cl-function
-             (lambda (&rest data &allow-other-keys)
-               (apply #'md4rd--fetch-sub-callback sub data)))
-            :sync nil
-            :parser #'json-read
-            :headers `(("User-Agent" . "fun"))))
+     (request "https://oauth.reddit.com/user/ivchoniboy/m/daily/top"
+              :complete
+              (cl-function
+               (lambda (&rest data &allow-other-keys)
+                 (message "%s" data)))
+              :sync nil
+              :type "GET"
+              :parser #'json-read
+              ;:headers `(("User-Agent" . "fun"))
+              :headers `(("User-Agent" . "md4rd")
+                         ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token)))
+     )
   )
 )
 
@@ -461,7 +482,8 @@ SUB should be a valid sub."
 (setq md4rd-customurls-active
   (list
     (make-multi-sub-tpe
-      :url "https://old.reddit.com/user/ivchoniboy/m/daily/top.json?sort=top&t=month"
+      ;:url "https://old.reddit.com/user/ivchoniboy/m/daily/top.json?sort=top&t=month"
+      :url "https://oauth.reddit.com/user/ivchoniboy/m/daily/top?t=month"
       :name "top"
     )
   )
@@ -697,7 +719,11 @@ return value of ACTIONFN is ignored."
              ;;  (browse-url .url))
 
              ((equal 'open md4rd--action-button-ctx)
-               (browse-url (concat "www.reddit.com/" .permalink)))
+               (progn
+                  (message "%s" .permalink)
+                  (browse-url (format "https://www.reddit.com/%s" .permalink))
+                )
+               )
 
              ((equal 'visit md4rd--action-button-ctx)
               (when .permalink
@@ -764,8 +790,16 @@ return value of ACTIONFN is ignored."
                ((equal 'downvote md4rd--action-button-ctx)
                 (md4rd--post-vote .name -1))
 
+               ;; TODO fix this later
+               ;; ((equal 'open md4rd--action-button-ctx)
+               ;;  (browse-url .url))
+
                ((equal 'open md4rd--action-button-ctx)
-                (browse-url .url))
+                (progn
+                  (message "%s" .permalink)
+                  (browse-url (format "https://www.reddit.com/%s" .permalink))
+                )
+               )
 
                ((equal 'visit md4rd--action-button-ctx)
                 (when .permalink
