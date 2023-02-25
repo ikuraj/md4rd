@@ -678,8 +678,12 @@ return value of ACTIONFN is ignored."
              ((equal 'downvote md4rd--action-button-ctx)
               (md4rd--post-vote .name -1))
 
+             ;; TODO fix this later
+             ;; ((equal 'open md4rd--action-button-ctx)
+             ;;  (browse-url .url))
+
              ((equal 'open md4rd--action-button-ctx)
-              (browse-url .url))
+               (browse-url (concat "www.reddit.com/" .permalink)))
 
              ((equal 'visit md4rd--action-button-ctx)
               (when .permalink
