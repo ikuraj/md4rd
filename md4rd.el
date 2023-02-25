@@ -283,15 +283,23 @@ SUB block is the nested list structure with them."
     (message (format "Parsing sub: %s" .name))
     (when (and .name .permalink)
       (message .name)
-      (let ((composite (list (cons 'name (intern .name))
+      (let (
+            (composite (list (cons 'name (intern .name))
                              (cons 'permalink    .permalink)
                              (cons 'url          .url)
                              (cons 'num_comments .num_comments)
                              (cons 'author       .author)
                              (cons 'title        .title)
                              (cons 'selftext     .selftext)
-                             (cons 'score        .score))))
-        (push composite (gethash sub md4rd--sub-composite))))
+                             (cons 'score        .score)))
+            (current-days (time-to-days (current-time)))
+            (post-days (time-to-days (seconds-to-time .created)))
+           )
+        (when (>= (- current-days post-days) md4rd-date-older-than-to-show)
+          (push composite (gethash sub md4rd--sub-composite))
+        )
+      )
+    )
     (when .children (md4rd--parse-sub .children sub))
     (when (and .replies
                (listp .replies))
@@ -358,6 +366,8 @@ SUB should be a valid sub."
                  (equal name (alist-get 'name comment)))
                md4rd--comments-composite))))
         (if parent-id parent-id 'thread)))))
+
+(defvar md4rd-date-older-than-to-show 10)
 
 (defgroup md4rd nil
   "Md4rd Mode customization group."
