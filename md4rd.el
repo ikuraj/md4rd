@@ -224,12 +224,20 @@ Should be one of visit, upvote, downvote, open.")
   (let ((my-data (plist-get data :data)))
     ;; (message "what: %s" my-data)
     (setf (gethash sub md4rd--cache-sub) my-data)
+    (setf md4rd--tries-left (- md4rd--tries-left 1))
 
     (setf (gethash sub md4rd--sub-composite) nil)
     (md4rd--parse-sub (list (gethash sub md4rd--cache-sub)) sub)
 
     (message "parsed entries count: %s" (length (gethash sub md4rd--sub-composite)))
-    (md4rd--sub-show)))
+    (if (or
+          (> (length (gethash sub md4rd--sub-composite)) 0)
+          (<= md4rd--tries-left 0)
+        )
+      (md4rd--sub-show)
+      (md4rd--fetch-sub sub)
+    )
+  ))
 
 (defvar md4rd--sub-url
   "https://www.reddit.com/r/%s.json")
@@ -245,6 +253,8 @@ Should be one of visit, upvote, downvote, open.")
 
 (defun md4rd--fetch-sub (sub)
   "Get a list of the SUB on a thread."
+  (setf md4rd--tries-left 1)
+  (message "Maximum tries set at: %d" md4rd--tries-left)
 
   (request-response-data
    (request (md4rd--get-item-url sub)
