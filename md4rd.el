@@ -224,7 +224,11 @@ Should be one of visit, upvote, downvote, open.")
   (let ((my-data (plist-get data :data)))
     ;; (message "what: %s" my-data)
     (setf (gethash sub md4rd--cache-sub) my-data)
-    (message "hash table count: %s" (hash-table-count md4rd--cache-sub))
+
+    (setf (gethash sub md4rd--sub-composite) nil)
+    (md4rd--parse-sub (list (gethash sub md4rd--cache-sub)) sub)
+
+    (message "parsed entries count: %s" (length (gethash sub md4rd--sub-composite)))
     (md4rd--sub-show)))
 
 (defvar md4rd--sub-url
@@ -318,8 +322,8 @@ SUB is the name of the sub."
   "Parse comment structures from cache data.
 
 SUB should be a valid sub."
-  (setf (gethash sub md4rd--sub-composite) nil)
-  (md4rd--parse-sub (list (gethash sub md4rd--cache-sub)) sub)
+  ;; (setf (gethash sub md4rd--sub-composite) nil)
+  ;; (md4rd--parse-sub (list (gethash sub md4rd--cache-sub)) sub)
   (gethash sub md4rd--sub-composite))
 
 (defun md4rd--find-comment-by-name (name)
