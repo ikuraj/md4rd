@@ -238,11 +238,16 @@ Should be one of visit, upvote, downvote, open.")
       (let
         (
          (name-of-last
-          (alist-get 'name
-            (alist-get 'data (car (last (alist-get 'children (alist-get 'data sub-post)))))
-          )
+           (alist-get 'name
+            (alist-get 'data
+              (aref
+                (alist-get 'children (alist-get 'data (gethash sub md4rd--cache-sub))) 24
+              )
+            )
+           )
          )
         )
+        (message "name of last: %s" name-of-last)
         (md4rd--fetch-sub-with-after-option sub (list name-of-last))
       )
     )
@@ -262,13 +267,15 @@ Should be one of visit, upvote, downvote, open.")
             :headers `(("User-Agent" . "fun")))))
 
 (defun md4rd--fetch-sub (sub)
+
+  (setf md4rd--tries-left md4rd--max-tries)
+  (message "Maximum tries set at: %d" md4rd--tries-left)
+
   (md4rd--fetch-sub-with-after-option sub nil)
 )
 
 (defun md4rd--fetch-sub-with-after-option (sub after)
   "Get a list of the SUB on a thread."
-  (setf md4rd--tries-left 10)
-  (message "Maximum tries set at: %d" md4rd--tries-left)
 
   (let (
         (after-suffix
@@ -330,7 +337,12 @@ SUB block is the nested list structure with them."
             (current-days (time-to-days (current-time)))
             (post-days (time-to-days (seconds-to-time .created)))
            )
-        (when (>= (- current-days post-days) md4rd-date-older-than-to-show)
+        (message "hidden? %s" .hidden)
+        (when
+            (and
+              (>= (- current-days post-days) md4rd-date-older-than-to-show)
+              ;(not .hidden)
+            )
           (push composite (gethash sub md4rd--sub-composite))
         )
       )
@@ -404,7 +416,9 @@ SUB should be a valid sub."
 
 (defvar md4rd-date-older-than-to-show 20)
 
-(defvar md4rd-minimum-to-show 10)
+(defvar md4rd--max-tries 5)
+
+(defvar md4rd-minimum-to-show 5)
 
 (defgroup md4rd nil
   "Md4rd Mode customization group."
