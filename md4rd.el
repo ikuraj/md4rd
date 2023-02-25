@@ -231,11 +231,20 @@ Should be one of visit, upvote, downvote, open.")
 
     (message "parsed entries count: %s" (length (gethash sub md4rd--sub-composite)))
     (if (or
-          (> (length (gethash sub md4rd--sub-composite)) 0)
+          (> (length (gethash sub md4rd--sub-composite)) md4rd-minimum-to-show)
           (<= md4rd--tries-left 0)
         )
       (md4rd--sub-show)
-      (md4rd--fetch-sub sub)
+      (let
+        (
+         (name-of-last
+          (alist-get 'name
+            (alist-get 'data (car (last (alist-get 'children (alist-get 'data sub-post)))))
+          )
+         )
+        )
+        (md4rd--fetch-sub-with-after-option sub (list name-of-last))
+      )
     )
   ))
 
@@ -258,7 +267,7 @@ Should be one of visit, upvote, downvote, open.")
 
 (defun md4rd--fetch-sub-with-after-option (sub after)
   "Get a list of the SUB on a thread."
-  (setf md4rd--tries-left 1)
+  (setf md4rd--tries-left 10)
   (message "Maximum tries set at: %d" md4rd--tries-left)
 
   (let (
@@ -393,7 +402,9 @@ SUB should be a valid sub."
                md4rd--comments-composite))))
         (if parent-id parent-id 'thread)))))
 
-(defvar md4rd-date-older-than-to-show 10)
+(defvar md4rd-date-older-than-to-show 20)
+
+(defvar md4rd-minimum-to-show 10)
 
 (defgroup md4rd nil
   "Md4rd Mode customization group."
