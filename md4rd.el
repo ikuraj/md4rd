@@ -239,8 +239,9 @@ Should be one of visit, upvote, downvote, open.")
     )
   ))
 
+;; NOTE added ? -- browser no care
 (defvar md4rd--sub-url
-  "https://www.reddit.com/r/%s.json")
+  "https://www.reddit.com/r/%s.json?")
 
 (defun md4rd--fetch-comments (comment-url)
   "Get a list of the comments on a thread that belong to COMMENT-URL."
@@ -252,19 +253,34 @@ Should be one of visit, upvote, downvote, open.")
             :headers `(("User-Agent" . "fun")))))
 
 (defun md4rd--fetch-sub (sub)
+  (md4rd--fetch-sub-with-after-option sub nil)
+)
+
+(defun md4rd--fetch-sub-with-after-option (sub after)
   "Get a list of the SUB on a thread."
   (setf md4rd--tries-left 1)
   (message "Maximum tries set at: %d" md4rd--tries-left)
 
+  (let (
+        (after-suffix
+                (if (eq nil after)
+                ""
+                (format "&after=%s" (car after))
+                )
+        )
+       )
+
   (request-response-data
-   (request (md4rd--get-item-url sub)
+   (request (concat (md4rd--get-item-url sub) after-suffix)
             :complete
             (cl-function
              (lambda (&rest data &allow-other-keys)
                (apply #'md4rd--fetch-sub-callback sub data)))
             :sync nil
             :parser #'json-read
-            :headers `(("User-Agent" . "fun")))))
+            :headers `(("User-Agent" . "fun"))))
+  )
+)
 
 (defun md4rd--parse-comments-helper (comments)
   "Parse the comments that were fetched.
