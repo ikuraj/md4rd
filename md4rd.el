@@ -241,8 +241,9 @@ Should be one of visit, upvote, downvote, open.")
 
 (defun md4rd--fetch-sub (sub)
   "Get a list of the SUB on a thread."
+
   (request-response-data
-   (request (format md4rd--sub-url sub)
+   (request (md4rd--get-item-url sub)
             :complete
             (cl-function
              (lambda (&rest data &allow-other-keys)
@@ -275,6 +276,7 @@ COMMENTS block is the nested list structure with them."
 SUB-POST is the actual post data submitted.
 SUB block is the nested list structure with them."
   (let-alist (alist-get 'data sub-post)
+    (message (format "Parsing sub: %s" .name))
     (when (and .name .permalink)
       (message .name)
       (let ((composite (list (cons 'name (intern .name))
@@ -363,6 +365,42 @@ SUB should be a valid sub."
   :group 'md4rd
   :type (list 'symbol))
 
+(cl-defstruct multi-sub-tpe url name)
+
+(defun md4rd--get-item-name (item)
+                      (if (multi-sub-tpe-p item)
+                          (multi-sub-tpe-name item)
+                          (symbol-name item)
+                      )
+
+)
+
+(defun md4rd--get-item-url (item)
+        (if (multi-sub-tpe-p item)
+           (multi-sub-tpe-url item)
+           (format md4rd--sub-url item)
+        )
+)
+
+(defun get-md4rd-active-subs-or-multis ()
+  ;md4rd-subs-active
+  md4rd-customurls-active
+)
+
+;; (defcustom md4rd-customurls-active
+;;   nil
+;;   "List of custom links you would like to subscribe to."
+;;   :group 'md4rd
+;;   :type (list 'multi-sub-tpe))
+
+(setq md4rd-customurls-active
+  (list
+    (make-multi-sub-tpe
+      :url "https://old.reddit.com/user/ivchoniboy/m/daily/top.json?sort=top&t=month"
+      :name "top"
+    )
+  )
+)
 
 ;;  ___  _         _
 ;; |   \(_)____ __| |__ _ _  _
@@ -468,7 +506,7 @@ the spot to do it as well."
            comment
            md4rd--parentfn)))))
 
-(defun md4rd--sub-hierarchy-build ()
+(defun md4rd--sub-hierarchy-build (given-subs)
   "Generate the sub-post structure."
   (setq md4rd--sub-hierarchy (hierarchy-new))
   (hierarchy-add-tree md4rd--sub-hierarchy 'subs (lambda (_) nil))
@@ -483,7 +521,7 @@ the spot to do it as well."
               md4rd--sub-hierarchy
               (alist-get 'name sub-post)
               (lambda (_) sub))))))
-   md4rd-subs-active))
+   given-subs))
 
 (defvar md4rd--hierarchy-labelfn-hooks nil)
 (defvar md4rd--sub-hierarchy-labelfn-hooks nil)
@@ -574,7 +612,7 @@ return value of ACTIONFN is ignored."
               (insert
                (format "%s"
                        (alist-get 'author comment)))
-            (insert (symbol-name item)))))
+            (insert (md4rd--get-item-name item)))))
       ;; Controls the button events we dispatch.
       (lambda (item _)
         (let ((comment (md4rd--find-comment-by-name item)))
@@ -630,7 +668,7 @@ return value of ACTIONFN is ignored."
                         (insert
                          (format " (↑ %s / ☠ %s) by: %s"
                                  .score .num_comments .author)))))))))
-    (md4rd--sub-hierarchy-build)
+    (md4rd--sub-hierarchy-build (get-md4rd-active-subs-or-multis))
     (switch-to-buffer
      (hierarchy-tree-display
       md4rd--sub-hierarchy
@@ -645,7 +683,7 @@ return value of ACTIONFN is ignored."
                          (if (member (alist-get 'author sub-post) md4rd--fool-list)
                              md4rd--fool-text
                            (alist-get 'title sub-post))))
-              (insert (symbol-name item)))))
+              (insert (md4rd--get-item-name item)))))
         ;; Controls the button events we dispatch.
         (lambda (item _)
           (let ((sub-post (md4rd--find-sub-post-by-name item)))
@@ -675,7 +713,9 @@ return value of ACTIONFN is ignored."
 (defun md4rd ()
   "Invoke the main mode."
   (interactive)
-  (mapcar #'md4rd--fetch-sub md4rd-subs-active))
+  (mapcar #'md4rd--fetch-sub (get-md4rd-active-subs-or-multis))
+  ;; (mapcar #'md4rd--fetch-full-link md4rd-customurls-active)
+)
 
 ;;;###autoload
 (defun mode-for-reddit ()
