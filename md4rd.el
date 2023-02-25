@@ -222,8 +222,9 @@ Should be one of visit, upvote, downvote, open.")
 (cl-defun md4rd--fetch-sub-callback (sub &rest data &allow-other-keys)
   "Callback for async, DATA is the response from request."
   (let ((my-data (plist-get data :data)))
-    (message "what: %s" my-data)
+    ;; (message "what: %s" my-data)
     (setf (gethash sub md4rd--cache-sub) my-data)
+    (message "hash table count: %s" (hash-table-count md4rd--cache-sub))
     (md4rd--sub-show)))
 
 (defvar md4rd--sub-url
