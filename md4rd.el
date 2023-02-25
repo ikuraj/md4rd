@@ -222,6 +222,7 @@ Should be one of visit, upvote, downvote, open.")
 (cl-defun md4rd--fetch-sub-callback (sub &rest data &allow-other-keys)
   "Callback for async, DATA is the response from request."
   (let ((my-data (plist-get data :data)))
+    (message "what: %s" my-data)
     (setf (gethash sub md4rd--cache-sub) my-data)
     (md4rd--sub-show)))
 
@@ -274,6 +275,7 @@ SUB-POST is the actual post data submitted.
 SUB block is the nested list structure with them."
   (let-alist (alist-get 'data sub-post)
     (when (and .name .permalink)
+      (message .name)
       (let ((composite (list (cons 'name (intern .name))
                              (cons 'permalink    .permalink)
                              (cons 'url          .url)
