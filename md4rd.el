@@ -437,7 +437,7 @@ SUB should be a valid sub."
 
 (defvar md4rd-date-older-than-to-show 20)
 
-(defvar md4rd--max-tries 5)
+(defvar md4rd--max-tries 15)
 
 (defvar md4rd-minimum-to-show 5)
 
@@ -721,7 +721,7 @@ return value of ACTIONFN is ignored."
              ((equal 'open md4rd--action-button-ctx)
                (progn
                   (message "%s" .permalink)
-                  (browse-url (format "https://www.reddit.com/%s" .permalink))
+                  (browse-url (format "https://old.reddit.com/%s" .permalink))
                 )
                )
 
@@ -797,7 +797,7 @@ return value of ACTIONFN is ignored."
                ((equal 'open md4rd--action-button-ctx)
                 (progn
                   (message "%s" .permalink)
-                  (browse-url (format "https://www.reddit.com/%s" .permalink))
+                  (browse-url (format "https://old.reddit.com/%s" .permalink))
                 )
                )
 
