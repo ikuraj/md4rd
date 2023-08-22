@@ -585,13 +585,15 @@ COMMENTS should be the ‘md4rd--comments-composite’.
 If we want to date sort or something, this would probably be
 the spot to do it as well."
   (-uniq
+   (let ((rcomments (reverse comments)))
    (append
     (cl-loop
-     for c in comments
-     collect (alist-get 'name c))
+     for c in rcomments
+     collect (alist-get 'parent_id c))
     (cl-loop
-     for c in comments
-     collect (alist-get 'parent_id c)))))
+     for c in rcomments
+     collect (alist-get 'name c))
+    ))))
 
 (defun md4rd--hierarchy-build ()
   "Generate the comment structure."
