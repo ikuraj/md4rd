@@ -66,7 +66,7 @@
   "The Oauth2 redirect_uri that links this up to the reddit.com OAuth endpoint.")
 
 (defvar md4rd--oauth-url
-  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit,read"
+  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit,read,report"
   "The OAuth URL/endpoint.")
 
 (defvar md4rd--oauth-access-token-uri
@@ -182,6 +182,19 @@ Should be one of visit, upvote, downvote, open.")
    (request "https://oauth.reddit.com/api/vote"
             :complete nil
             :data (format "id=%s&dir=%s" id dir)
+            :sync nil
+            :type "POST"
+            :parser #'json-read
+            :headers `(("User-Agent" . "md4rd")
+                       ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token))))))
+
+(defun md4rd--post-hide (id)
+  "Cast a hide on a thing.  ID is the t3_xxx type id."
+  (message (format  "Hiding %s." id))
+  (request-response-data
+   (request "https://oauth.reddit.com/api/hide"
+            :complete nil
+            :data (format "id=%s" id)
             :sync nil
             :type "POST"
             :parser #'json-read
@@ -711,6 +724,9 @@ return value of ACTIONFN is ignored."
              ((equal 'upvote md4rd--action-button-ctx)
               (md4rd--post-vote .name 1))
 
+             ((equal 'hide md4rd--action-button-ctx)
+              (md4rd--post-hide .name))
+
              ((equal 'downvote md4rd--action-button-ctx)
               (md4rd--post-vote .name -1))
 
@@ -790,6 +806,9 @@ return value of ACTIONFN is ignored."
                ((equal 'downvote md4rd--action-button-ctx)
                 (md4rd--post-vote .name -1))
 
+               ((equal 'hide md4rd--action-button-ctx)
+                (md4rd--post-hide .name))
+
                ;; TODO fix this later
                ;; ((equal 'open md4rd--action-button-ctx)
                ;;  (browse-url .url))
@@ -854,6 +873,18 @@ return value of ACTIONFN is ignored."
   (when (equal 'button (button-type (button-at (point))))
     (setq md4rd--action-button-ctx 'upvote)
     (message "Upvoted!")
+    (push-button)
+    (setq md4rd--action-button-ctx 'visit)))
+
+(defun md4rd-hide ()
+  "Hide something the user is on."
+  (interactive)
+  (unless (md4rd-logged-in-p)
+    (md4rd-login))
+  ;; Ensure we're actually on a plain button, not a tree widget.
+  (when (equal 'button (button-type (button-at (point))))
+    (setq md4rd--action-button-ctx 'hide)
+    (message "Hidden!")
     (push-button)
     (setq md4rd--action-button-ctx 'visit)))
 
