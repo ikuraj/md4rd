@@ -270,6 +270,9 @@ Should be one of visit, upvote, downvote, open.")
 (defvar md4rd--sub-url
   "https://www.reddit.com/r/%s.json?")
 
+;; NOTE terrible global variable...
+(defvar md4rd--last-opened nil)
+
 (defun md4rd--fetch-comments (comment-url)
   "Get a list of the comments on a thread that belong to COMMENT-URL."
   (request-response-data
@@ -367,6 +370,8 @@ SUB block is the nested list structure with them."
                              (cons 'author       .author)
                              (cons 'title        .title)
                              (cons 'selftext     .selftext)
+                             ; Ivan
+                             (cons 'subreddit     .subreddit)
                              (cons 'score        .score)))
             (current-days (time-to-days (current-time)))
             (post-days (time-to-days (seconds-to-time .created)))
@@ -739,7 +744,11 @@ return value of ACTIONFN is ignored."
              ((equal 'open md4rd--action-button-ctx)
                (progn
                   (message "%s" .permalink)
-                  (browse-url (format "https://old.reddit.com/%s" .permalink))
+                  (message "%s" .url)
+                  (cond
+                   (.permalink (browse-url (format "https://old.reddit.com/%s" .permalink)))
+                   (t (browse-url (format "https://old.reddit.com/%s" .url)))
+                  )
                 )
                )
 
@@ -818,13 +827,18 @@ return value of ACTIONFN is ignored."
                ((equal 'open md4rd--action-button-ctx)
                 (progn
                   (message "%s" .permalink)
-                  (browse-url (format "https://old.reddit.com/%s" .permalink))
+                  ;; (browse-url (format "https://old.reddit.com/%s" .permalink))
+
+                  ;; ssh -p2000 ivankuraj@localhost 'open -a "Firefox" "https://old.reddit.com//r/REBubble/comments/15efslv/americans_flocked_to_florida_for_low_taxes_and/"'
+                  ;; (message (format "\"open -a \\\"Firefox\\\" \\\"https://old.reddit.com/%s\\\"\"" .permalink))
+                  (remote-call-linux (format "https://old.reddit.com/%s" .permalink))
                 )
                )
 
                ((equal 'visit md4rd--action-button-ctx)
                 (when .permalink
                   (message "Fetching: %s" .permalink)
+                  (setq md4rd--last-opened sub-post)
                   (md4rd--fetch-comments
                    (format "http://reddit.com%s.json" .permalink))))
 
