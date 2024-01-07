@@ -66,7 +66,10 @@
   "The Oauth2 redirect_uri that links this up to the reddit.com OAuth endpoint.")
 
 (defvar md4rd--oauth-url
-  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit,read,report"
+  ; + hide
+  ;"https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit,read,report"
+  ; + save
+  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit,read,report,save"
   "The OAuth URL/endpoint.")
 
 (defvar md4rd--oauth-access-token-uri
@@ -195,6 +198,20 @@ Should be one of visit, upvote, downvote, open.")
    (request "https://oauth.reddit.com/api/hide"
             :complete nil
             :data (format "id=%s" id)
+            :sync nil
+            :type "POST"
+            :parser #'json-read
+            :headers `(("User-Agent" . "md4rd")
+                       ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token))))))
+
+(defun md4rd--post-save (id)
+  "Save the thing.  ID is the t3_xxx type id."
+  (message (format  "Saving %s." id))
+  (request-response-data
+   (request "https://oauth.reddit.com/api/save"
+            :complete nil
+            ;; NOTE https://www.reddit.com/r/redditdev/comments/9i3t8e/saved_posts_all_have_category_none/
+            :data (format "id=%s&category=none" id)
             :sync nil
             :type "POST"
             :parser #'json-read
@@ -734,6 +751,9 @@ return value of ACTIONFN is ignored."
              ((equal 'hide md4rd--action-button-ctx)
               (md4rd--post-hide .name))
 
+             ((equal 'save md4rd--action-button-ctx)
+              (md4rd--post-save .name))
+
              ((equal 'downvote md4rd--action-button-ctx)
               (md4rd--post-vote .name -1))
 
@@ -820,6 +840,9 @@ return value of ACTIONFN is ignored."
                ((equal 'hide md4rd--action-button-ctx)
                 (md4rd--post-hide .name))
 
+               ((equal 'save md4rd--action-button-ctx)
+                (md4rd--post-save .name))
+
                ;; TODO fix this later
                ;; ((equal 'open md4rd--action-button-ctx)
                ;;  (browse-url .url))
@@ -831,7 +854,7 @@ return value of ACTIONFN is ignored."
 
                   ;; ssh -p2000 ivankuraj@localhost 'open -a "Firefox" "https://old.reddit.com//r/REBubble/comments/15efslv/americans_flocked_to_florida_for_low_taxes_and/"'
                   ;; (message (format "\"open -a \\\"Firefox\\\" \\\"https://old.reddit.com/%s\\\"\"" .permalink))
-                  (remote-call-linux (format "https://old.reddit.com/%s" .permalink))
+                  (remote-browse (format "https://old.reddit.com/%s" .permalink))
                 )
                )
 
@@ -901,6 +924,18 @@ return value of ACTIONFN is ignored."
   (when (equal 'button (button-type (button-at (point))))
     (setq md4rd--action-button-ctx 'hide)
     (message "Hidden!")
+    (push-button)
+    (setq md4rd--action-button-ctx 'visit)))
+
+(defun md4rd-save ()
+  "Save something the user is on."
+  (interactive)
+  (unless (md4rd-logged-in-p)
+    (md4rd-login))
+  ;; Ensure we're actually on a plain button, not a tree widget.
+  (when (equal 'button (button-type (button-at (point))))
+    (setq md4rd--action-button-ctx 'save)
+    (message "Saved!")
     (push-button)
     (setq md4rd--action-button-ctx 'visit)))
 
@@ -998,6 +1033,8 @@ return value of ACTIONFN is ignored."
   (let ((map (make-keymap)))
     (define-key map (kbd "u") 'tree-mode-goto-parent)
     (define-key map (kbd "o") 'md4rd-open)
+    (define-key map (kbd "a") 'md4rd-hide)
+    (define-key map (kbd "z") 'md4rd-save)
     (define-key map (kbd "v") 'md4rd-visit)
     (define-key map (kbd "e") 'tree-mode-toggle-expand)
     (define-key map (kbd "E") 'md4rd-widget-expand-all)
@@ -1042,6 +1079,8 @@ return value of ACTIONFN is ignored."
     (evil-define-key* '(normal motion) md4rd-mode-map (kbd "u") 'md4rd-upvote)
     (evil-define-key* '(normal motion) md4rd-mode-map (kbd "d") 'md4rd-downvote)
     (evil-define-key* '(normal motion) md4rd-mode-map (kbd "o") 'md4rd-open)
+    (evil-define-key* '(normal motion) md4rd-mode-map (kbd "a") 'md4rd-hide)
+    (evil-define-key* '(normal motion) md4rd-mode-map (kbd "z") 'md4rd-save)
     (evil-define-key* '(normal motion) md4rd-mode-map (kbd "t") 'md4rd-widget-toggle-line)
     (evil-define-key* '(normal motion) md4rd-mode-map (kbd "e") 'md4rd-widget-expand-all)
     (evil-define-key* '(normal motion) md4rd-mode-map (kbd "c") 'md4rd-widget-collapse-all)
