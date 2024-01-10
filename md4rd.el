@@ -854,7 +854,7 @@ return value of ACTIONFN is ignored."
 
                   ;; ssh -p2000 ivankuraj@localhost 'open -a "Firefox" "https://old.reddit.com//r/REBubble/comments/15efslv/americans_flocked_to_florida_for_low_taxes_and/"'
                   ;; (message (format "\"open -a \\\"Firefox\\\" \\\"https://old.reddit.com/%s\\\"\"" .permalink))
-                  (remote-browse (format "https://old.reddit.com/%s" .permalink))
+                  (browse-url (format "https://old.reddit.com/%s" .permalink))
                 )
                )
 
