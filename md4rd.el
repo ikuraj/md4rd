@@ -58,15 +58,15 @@
 ;; OAuth related code (figlets rock!):
 
 ;; https://github.com/reddit/reddit/wiki/OAuth2
-(defvar md4rd--oauth-client-id "FaEUihB391qTwA"
-  "The client ID that links this up to the reddit.com OAuth endpoint.")
+(defvar md4rd--oauth-client-id ""
+  "The client ID that links this up to the reddit.com OAuth endpoint, as generated from Reddit when you create/apply for an API app.")
 
 (defvar md4rd--oauth-redirect-uri
-  "http://ahungry.com/md4rd"
-  "The client ID that links this up to the reddit.com OAuth endpoint.")
+  ""
+  "The Oauth2 redirect_uri that links this up to the reddit.com OAuth endpoint.")
 
 (defvar md4rd--oauth-url
-  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit"
+  "https://www.reddit.com/api/v1/authorize?client_id=%s&response_type=code&state=nil&redirect_uri=%s&duration=permanent&scope=vote,submit,read,report"
   "The OAuth URL/endpoint.")
 
 (defvar md4rd--oauth-access-token-uri
@@ -188,6 +188,19 @@ Should be one of visit, upvote, downvote, open.")
             :headers `(("User-Agent" . "md4rd")
                        ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token))))))
 
+(defun md4rd--post-hide (id)
+  "Cast a hide on a thing.  ID is the t3_xxx type id."
+  (message (format  "Hiding %s." id))
+  (request-response-data
+   (request "https://oauth.reddit.com/api/hide"
+            :complete nil
+            :data (format "id=%s" id)
+            :sync nil
+            :type "POST"
+            :parser #'json-read
+            :headers `(("User-Agent" . "md4rd")
+                       ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token))))))
+
 (defun md4rd--post-reply (id message)
   "Cast a vote on a thing.  ID is the t3_xxx type id, MESSAGE is the message."
   (message (format  "Replying to %s with a value of: %s" id message))
@@ -222,11 +235,40 @@ Should be one of visit, upvote, downvote, open.")
 (cl-defun md4rd--fetch-sub-callback (sub &rest data &allow-other-keys)
   "Callback for async, DATA is the response from request."
   (let ((my-data (plist-get data :data)))
+    ;; (message "what: %s" my-data)
     (setf (gethash sub md4rd--cache-sub) my-data)
-    (md4rd--sub-show)))
+    (setf md4rd--tries-left (- md4rd--tries-left 1))
 
+    (setf (gethash sub md4rd--sub-composite) nil)
+    (md4rd--parse-sub (list (gethash sub md4rd--cache-sub)) sub)
+
+    (message "parsed entries count: %s" (length (gethash sub md4rd--sub-composite)))
+    (if (or
+          (> (length (gethash sub md4rd--sub-composite)) md4rd-minimum-to-show)
+          (<= md4rd--tries-left 0)
+        )
+      (md4rd--sub-show)
+      (let
+        (
+         (name-of-last
+           (alist-get 'name
+            (alist-get 'data
+              (aref
+                (alist-get 'children (alist-get 'data (gethash sub md4rd--cache-sub))) 24
+              )
+            )
+           )
+         )
+        )
+        (message "name of last: %s" name-of-last)
+        (md4rd--fetch-sub-with-after-option sub (list name-of-last))
+      )
+    )
+  ))
+
+;; NOTE added ? -- browser no care
 (defvar md4rd--sub-url
-  "https://www.reddit.com/r/%s.json")
+  "https://www.reddit.com/r/%s.json?")
 
 (defun md4rd--fetch-comments (comment-url)
   "Get a list of the comments on a thread that belong to COMMENT-URL."
@@ -245,16 +287,57 @@ Should be one of visit, upvote, downvote, open.")
 )
 
 (defun md4rd--fetch-sub (sub)
+
+  (setf md4rd--tries-left md4rd--max-tries)
+  (message "Maximum tries set at: %d" md4rd--tries-left)
+
+  (md4rd--fetch-sub-with-after-option sub nil)
+)
+
+(defun md4rd--fetch-sub-with-after-option (sub after)
   "Get a list of the SUB on a thread."
+
+  (let (
+        (after-suffix
+                (if (eq nil after)
+                ""
+                (format "&after=%s" (car after))
+                )
+        )
+       )
+    (request-response-data
+     (request (concat (md4rd--get-item-url sub) after-suffix)
+              :complete
+              (cl-function
+               (lambda (&rest data &allow-other-keys)
+                 (apply #'md4rd--fetch-sub-callback sub data)))
+              :sync nil
+              :parser #'json-read
+              ;:headers `(("User-Agent" . "fun"))
+              :headers `(("User-Agent" . "md4rd")
+                         ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token)))
+     )
+    )
+  )
+)
+
+(defun reddit-test ()
+(message "----------------WTF------------------")
   (request-response-data
-   (request (format md4rd--sub-url sub)
-            :complete
-            (cl-function
-             (lambda (&rest data &allow-other-keys)
-               (apply #'md4rd--fetch-sub-callback sub data)))
-            :sync nil
-            :parser #'json-read
-            :headers `(("User-Agent" . "fun")))))
+     (request "https://oauth.reddit.com/user/ivchoniboy/m/daily/top"
+              :complete
+              (cl-function
+               (lambda (&rest data &allow-other-keys)
+                 (message "%s" data)))
+              :sync nil
+              :type "GET"
+              :parser #'json-read
+              ;:headers `(("User-Agent" . "fun"))
+              :headers `(("User-Agent" . "md4rd")
+                         ("Authorization" . ,(format  "bearer %s" md4rd--oauth-access-token)))
+     )
+  )
+)
 
 (defun md4rd--parse-comments-helper (comments)
   "Parse the comments that were fetched.
@@ -280,16 +363,31 @@ COMMENTS block is the nested list structure with them."
 SUB-POST is the actual post data submitted.
 SUB block is the nested list structure with them."
   (let-alist (alist-get 'data sub-post)
+    (message (format "Parsing sub: %s" .name))
     (when (and .name .permalink)
-      (let ((composite (list (cons 'name (intern .name))
+      (message .name)
+      (let (
+            (composite (list (cons 'name (intern .name))
                              (cons 'permalink    .permalink)
                              (cons 'url          .url)
                              (cons 'num_comments .num_comments)
                              (cons 'author       .author)
                              (cons 'title        .title)
                              (cons 'selftext     .selftext)
-                             (cons 'score        .score))))
-        (push composite (gethash sub md4rd--sub-composite))))
+                             (cons 'score        .score)))
+            (current-days (time-to-days (current-time)))
+            (post-days (time-to-days (seconds-to-time .created)))
+           )
+        (message "hidden? %s" .hidden)
+        (when
+            (and
+              (>= (- current-days post-days) md4rd-date-older-than-to-show)
+              ;(not .hidden)
+            )
+          (push composite (gethash sub md4rd--sub-composite))
+        )
+      )
+    )
     (when .children (md4rd--parse-sub .children sub))
     (when (and .replies
                (listp .replies))
@@ -320,8 +418,8 @@ SUB is the name of the sub."
   "Parse comment structures from cache data.
 
 SUB should be a valid sub."
-  (setf (gethash sub md4rd--sub-composite) nil)
-  (md4rd--parse-sub (list (gethash sub md4rd--cache-sub)) sub)
+  ;; (setf (gethash sub md4rd--sub-composite) nil)
+  ;; (md4rd--parse-sub (list (gethash sub md4rd--cache-sub)) sub)
   (gethash sub md4rd--sub-composite))
 
 (defun md4rd--find-comment-by-name (name)
@@ -357,6 +455,12 @@ SUB should be a valid sub."
                md4rd--comments-composite))))
         (if parent-id parent-id 'thread)))))
 
+(defvar md4rd-date-older-than-to-show 20)
+
+(defvar md4rd--max-tries 15)
+
+(defvar md4rd-minimum-to-show 5)
+
 (defgroup md4rd nil
   "Md4rd Mode customization group."
   :group 'applications)
@@ -372,6 +476,44 @@ SUB should be a valid sub."
   "List of custom URLs on Reddit you would like to subscribe to."
   :group 'md4rd
   :type (list (list '(string))))
+
+(cl-defstruct multi-sub-tpe url name)
+
+(defun md4rd--get-item-name (item)
+                      (if (multi-sub-tpe-p item)
+                          (multi-sub-tpe-name item)
+                          (symbol-name item)
+                      )
+
+)
+
+(defun md4rd--get-item-url (item)
+        (if (multi-sub-tpe-p item)
+           (multi-sub-tpe-url item)
+           (format md4rd--sub-url item)
+        )
+)
+
+(defun get-md4rd-active-subs-or-multis ()
+  ;md4rd-subs-active
+  md4rd-customurls-active
+)
+
+;; (defcustom md4rd-customurls-active
+;;   nil
+;;   "List of custom links you would like to subscribe to."
+;;   :group 'md4rd
+;;   :type (list 'multi-sub-tpe))
+
+(setq md4rd-customurls-active
+  (list
+    (make-multi-sub-tpe
+      ;:url "https://old.reddit.com/user/ivchoniboy/m/daily/top.json?sort=top&t=month"
+      :url "https://oauth.reddit.com/user/ivchoniboy/m/daily/top?t=month"
+      :name "top"
+    )
+  )
+)
 
 ;;  ___  _         _
 ;; |   \(_)____ __| |__ _ _  _
@@ -456,13 +598,15 @@ COMMENTS should be the ‘md4rd--comments-composite’.
 If we want to date sort or something, this would probably be
 the spot to do it as well."
   (-uniq
+   (let ((rcomments (reverse comments)))
    (append
     (cl-loop
-     for c in comments
-     collect (alist-get 'name c))
+     for c in rcomments
+     collect (alist-get 'parent_id c))
     (cl-loop
-     for c in comments
-     collect (alist-get 'parent_id c)))))
+     for c in rcomments
+     collect (alist-get 'name c))
+    ))))
 
 (defun md4rd--hierarchy-build ()
   "Generate the comment structure."
@@ -477,7 +621,7 @@ the spot to do it as well."
            comment
            md4rd--parentfn)))))
 
-(defun md4rd--sub-hierarchy-build ()
+(defun md4rd--sub-hierarchy-build (given-subs)
   "Generate the sub-post structure."
   (setq md4rd--sub-hierarchy (hierarchy-new))
   (hierarchy-add-tree md4rd--sub-hierarchy 'subs (lambda (_) nil))
@@ -492,7 +636,7 @@ the spot to do it as well."
               md4rd--sub-hierarchy
               (alist-get 'name sub-post)
               (lambda (_) sub))))))
-   md4rd-subs-active))
+   given-subs))
 
 (defvar md4rd--hierarchy-labelfn-hooks nil)
 (defvar md4rd--sub-hierarchy-labelfn-hooks nil)
@@ -583,7 +727,7 @@ return value of ACTIONFN is ignored."
               (insert
                (format "%s"
                        (alist-get 'author comment)))
-            (insert (symbol-name item)))))
+            (insert (md4rd--get-item-name item)))))
       ;; Controls the button events we dispatch.
       (lambda (item _)
         (let ((comment (md4rd--find-comment-by-name item)))
@@ -595,11 +739,22 @@ return value of ACTIONFN is ignored."
              ((equal 'upvote md4rd--action-button-ctx)
               (md4rd--post-vote .name 1))
 
+             ((equal 'hide md4rd--action-button-ctx)
+              (md4rd--post-hide .name))
+
              ((equal 'downvote md4rd--action-button-ctx)
               (md4rd--post-vote .name -1))
 
+             ;; TODO fix this later
+             ;; ((equal 'open md4rd--action-button-ctx)
+             ;;  (browse-url .url))
+
              ((equal 'open md4rd--action-button-ctx)
-              (browse-url .url))
+               (progn
+                  (message "%s" .permalink)
+                  (browse-url (format "https://old.reddit.com/%s" .permalink))
+                )
+               )
 
              ((equal 'visit md4rd--action-button-ctx)
               (when .permalink
@@ -639,7 +794,7 @@ return value of ACTIONFN is ignored."
                         (insert
                          (format " (↑ %s / ☠ %s) by: %s"
                                  .score .num_comments .author)))))))))
-    (md4rd--sub-hierarchy-build)
+    (md4rd--sub-hierarchy-build (get-md4rd-active-subs-or-multis))
     (switch-to-buffer
      (hierarchy-tree-display
       md4rd--sub-hierarchy
@@ -654,7 +809,7 @@ return value of ACTIONFN is ignored."
                          (if (member (alist-get 'author sub-post) md4rd--fool-list)
                              md4rd--fool-text
                            (alist-get 'title sub-post))))
-              (insert (symbol-name item)))))
+              (insert (md4rd--get-item-name item)))))
         ;; Controls the button events we dispatch.
         (lambda (item _)
           (let ((sub-post (md4rd--find-sub-post-by-name item)))
@@ -666,8 +821,19 @@ return value of ACTIONFN is ignored."
                ((equal 'downvote md4rd--action-button-ctx)
                 (md4rd--post-vote .name -1))
 
+               ((equal 'hide md4rd--action-button-ctx)
+                (md4rd--post-hide .name))
+
+               ;; TODO fix this later
+               ;; ((equal 'open md4rd--action-button-ctx)
+               ;;  (browse-url .url))
+
                ((equal 'open md4rd--action-button-ctx)
-                (browse-url .url))
+                (progn
+                  (message "%s" .permalink)
+                  (browse-url (format "https://old.reddit.com/%s" .permalink))
+                )
+               )
 
                ((equal 'visit md4rd--action-button-ctx)
                 (when .permalink
@@ -684,7 +850,9 @@ return value of ACTIONFN is ignored."
 (defun md4rd ()
   "Invoke the main mode."
   (interactive)
-  (mapcar #'md4rd--fetch-sub md4rd-subs-active))
+  (mapcar #'md4rd--fetch-sub (get-md4rd-active-subs-or-multis))
+  ;; (mapcar #'md4rd--fetch-full-link md4rd-customurls-active)
+)
 
 ;;;###autoload
 (defun mode-for-reddit ()
@@ -720,6 +888,18 @@ return value of ACTIONFN is ignored."
   (when (equal 'button (button-type (button-at (point))))
     (setq md4rd--action-button-ctx 'upvote)
     (message "Upvoted!")
+    (push-button)
+    (setq md4rd--action-button-ctx 'visit)))
+
+(defun md4rd-hide ()
+  "Hide something the user is on."
+  (interactive)
+  (unless (md4rd-logged-in-p)
+    (md4rd-login))
+  ;; Ensure we're actually on a plain button, not a tree widget.
+  (when (equal 'button (button-type (button-at (point))))
+    (setq md4rd--action-button-ctx 'hide)
+    (message "Hidden!")
     (push-button)
     (setq md4rd--action-button-ctx 'visit)))
 
